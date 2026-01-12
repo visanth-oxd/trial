@@ -1,0 +1,102 @@
+name: Terraform Validate
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+env:
+  TF_VERSION: "1.5.0"
+  AWS_REGION: "eu-west-2"
+
+jobs:
+  terraform-validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        working-directory: environments/${{ matrix.environment }}
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        working-directory: environments/${{ matrix.environment }}
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        id: validate
+        working-directory: environments/${{ matrix.environment }}
+        run: terraform validate -no-color
+
+      - name: Terraform Validate Modules
+        id: validate-modules
+        run: |
+          for module in modules/*/; do
+            echo "Validating module: $module"
+            terraform init -backend=false -input=false $module
+            terraform validate -no-color $module
+          done
+
+  terraform-lint:
+    name: Lint Terraform
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Run tflint
+        uses: terraform-linters/setup-tflint@v3
+        with:
+          tflint_version: latest
+
+      - name: Run tflint on modules
+        run: |
+          for module in modules/*/; do
+            echo "Linting module: $module"
+            tflint --init $module
+            tflint $module
+          done
+
+      - name: Run tflint on environments
+        run: |
+          for env in environments/*/; do
+            echo "Linting environment: $env"
+            tflint --init $env
+            tflint $env
+          done
+

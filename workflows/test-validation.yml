@@ -1,0 +1,76 @@
+name: Test Terraform Validation
+
+# This workflow demonstrates that terraform validate works successfully
+# It runs on every push and pull request
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+  workflow_dispatch:
+
+jobs:
+  validate-terraform:
+    name: Validate Terraform Code
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, prod]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Format Check
+        working-directory: environments/${{ matrix.environment }}
+        run: |
+          echo "Checking Terraform formatting for ${{ matrix.environment }} environment..."
+          terraform fmt -check -recursive
+          echo "✓ Format check passed"
+
+      - name: Terraform Init
+        working-directory: environments/${{ matrix.environment }}
+        run: |
+          echo "Initializing Terraform for ${{ matrix.environment }} environment..."
+          terraform init -backend=false -input=false
+          echo "✓ Initialization successful"
+
+      - name: Terraform Validate
+        working-directory: environments/${{ matrix.environment }}
+        run: |
+          echo "Validating Terraform configuration for ${{ matrix.environment }} environment..."
+          terraform validate -no-color
+          echo "✓ Validation successful for ${{ matrix.environment }} environment"
+
+      - name: Validate Modules
+        run: |
+          echo "Validating Terraform modules..."
+          for module in modules/*/; do
+            echo "Validating module: $module"
+            cd "$module"
+            terraform init -backend=false -input=false
+            terraform validate -no-color
+            echo "✓ Module validation passed: $module"
+            cd - > /dev/null
+          done
+
+      - name: Validation Summary
+        run: |
+          echo "=========================================="
+          echo "✓ All Terraform validations passed!"
+          echo "=========================================="
+          echo ""
+          echo "Validated:"
+          echo "  - ${{ matrix.environment }} environment"
+          echo "  - All modules"
+          echo ""
+          echo "Status: SUCCESS ✅"
+
