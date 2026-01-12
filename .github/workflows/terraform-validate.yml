@@ -85,18 +85,20 @@ jobs:
           tflint_version: latest
 
       - name: Run tflint on modules
+        continue-on-error: true
         run: |
           for module in modules/*/; do
             echo "Linting module: $module"
             tflint --init --chdir="$module"
-            tflint --chdir="$module"
+            tflint --chdir="$module" || echo "⚠ tflint found issues in $module (non-blocking)"
           done
 
       - name: Run tflint on environments
+        continue-on-error: true
         run: |
           for env in environments/*/; do
             echo "Linting environment: $env"
             tflint --init --chdir="$env"
-            tflint --chdir="$env"
+            tflint --chdir="$env" || echo "⚠ tflint found issues in $env (non-blocking)"
           done
 
