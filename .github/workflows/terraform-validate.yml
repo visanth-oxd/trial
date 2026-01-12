@@ -62,8 +62,8 @@ jobs:
         run: |
           for module in modules/*/; do
             echo "Validating module: $module"
-            terraform init -backend=false -input=false $module
-            terraform validate -no-color $module
+            terraform -chdir="$module" init -backend=false -input=false
+            terraform -chdir="$module" validate -no-color
           done
 
   terraform-lint:
@@ -88,15 +88,15 @@ jobs:
         run: |
           for module in modules/*/; do
             echo "Linting module: $module"
-            tflint --init $module
-            tflint $module
+            tflint --init --chdir="$module"
+            tflint --chdir="$module"
           done
 
       - name: Run tflint on environments
         run: |
           for env in environments/*/; do
             echo "Linting environment: $env"
-            tflint --init $env
-            tflint $env
+            tflint --init --chdir="$env"
+            tflint --chdir="$env"
           done
 
